@@ -36,6 +36,6 @@ qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
-TRANSLATIONS = main_ru.ts
+TRANSLATIONS = ../BIN/DATA/translations/main_ru.ts
 DESTDIR= ../BIN
 
