@@ -3,6 +3,8 @@
 
 #include <QWidget>
 
+class QLineEdit;
+
 class Widget : public QWidget
 {
     Q_OBJECT
@@ -16,8 +18,15 @@ private:
 
 private:
     QString m_sourcePath;
-
     QString m_destPath;
+
+    QLineEdit* m_lEsource;
+    QLineEdit* m_lEDest;
+
+private slots:
+    void onChangeSourcePath();
+
+    void onChangeDestPath();
 };
 
 #endif // WIDGET_H

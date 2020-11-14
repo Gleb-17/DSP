@@ -8,10 +8,13 @@
 #include <QDebug>
 #include <QDir>
 #include <QFile>
+#include <QFileDialog>
 #include <QDataStream>
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
+    , m_lEsource( new QLineEdit )
+    , m_lEDest( new QLineEdit )
 {
     setWindowTitle(QString(" "));
 
@@ -78,10 +81,9 @@ void Widget::initGui()
     QHBoxLayout * sourceLayout = new QHBoxLayout;
     gbSrc->setLayout( sourceLayout );
 
-    QLineEdit* lEsource = new QLineEdit;
     QPushButton* pBSource = new QPushButton(tr("Choose"));
 
-    sourceLayout->addWidget(lEsource);
+    sourceLayout->addWidget(m_lEsource);
     sourceLayout->addWidget(pBSource);
 
 
@@ -89,10 +91,9 @@ void Widget::initGui()
     QHBoxLayout * destLayout = new QHBoxLayout;
     gbDest->setLayout( destLayout );
 
-    QLineEdit* lEDest = new QLineEdit;
     QPushButton* pBDest = new QPushButton(tr("Choose"));
 
-    destLayout->addWidget(lEDest);
+    destLayout->addWidget(m_lEDest);
     destLayout->addWidget(pBDest);
 
 
@@ -100,11 +101,42 @@ void Widget::initGui()
     mainLayout->addWidget(gbDest);
 
 
-    QDir dir("./DATA");
+
+    QDir dir("./DATA/input");
     if( !dir.exists())
         qDebug() << Q_FUNC_INFO << dir.mkpath(".");
 
-    lEsource->setText(dir.absolutePath());
+    m_lEsource->setText(dir.absolutePath());
+    m_sourcePath = m_lEsource->text();
 
 
+    connect(pBSource, &QPushButton::clicked, this, &Widget::onChangeSourcePath);
+    connect(pBDest, &QPushButton::clicked, this, &Widget::onChangeDestPath);
+
+}
+
+void Widget::onChangeSourcePath()
+{
+    QString sourcePath = QFileDialog::getExistingDirectory(this
+                                                     , tr("Choose directory")
+                                                     , "."
+                                                     );
+    if( sourcePath.isEmpty() )
+        return;
+
+    m_sourcePath = sourcePath;
+    m_lEsource->setText(m_sourcePath);
+}
+
+void Widget::onChangeDestPath()
+{
+    QString destPath = QFileDialog::getExistingDirectory(this
+                                                     , tr("Choose directory")
+                                                     , "."
+                                                     );
+    if( destPath.isEmpty() )
+        return;
+
+    m_destPath = destPath;
+    m_lEDest->setText(m_destPath);
 }
