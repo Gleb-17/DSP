@@ -1,4 +1,6 @@
 *.user
 Makefile*
 .qmake*
+build*
+*.exe
 
