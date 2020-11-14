@@ -1,76 +1,42 @@
 #include "widget.h"
 
-#include <QBoxLayout>
-#include <QGroupBox>
-#include <QLineEdit>
-#include <QPushButton>
+#include "silencealgorytm.h"
 
+#include <QBoxLayout>
 #include <QDebug>
 #include <QDir>
-#include <QFile>
 #include <QFileDialog>
-#include <QDataStream>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QLabel>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QSpinBox>
+
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
+    , m_silenceAlgorytm( new SilenceAlgorytm )
     , m_lEsource( new QLineEdit )
     , m_lEDest( new QLineEdit )
+    , m_pBStart( new QPushButton(tr("Start algorytm")) )
+    , m_isAlgorytmContinued( new QLabel )
 {
     setWindowTitle(QString(" "));
 
-    QFile file("D:/Qt_projects/DSP/DSP_audio/input/1-10.bin");
+    m_silenceAlgorytm->moveToThread(&m_thread);
+    connect(&m_thread, &QThread::finished
+            , m_silenceAlgorytm, &SilenceAlgorytm::deleteLater);
 
-    if (!file.open(QIODevice::ReadOnly) )
-        return;
-
-    qint64 filesize = file.size();
-
-    QByteArray buffer;
-    buffer.resize(static_cast<int>(filesize));
-    QDataStream stream(&file);
-
-
-    stream.readRawData( buffer.data(), static_cast<int>(filesize));
-    //buffer[1] = 34;
-    qDebug() << Q_FUNC_INFO << buffer.count();
-
-    //Assign sound samples to short array
-    qint16* resultingData = reinterpret_cast<qint16*>(buffer.data());
-
-    QList<qint16> result;
-    for ( int i=0; i < buffer.count() / 2; i++ )
-    {
-        //qDebug() << Q_FUNC_INFO << i;
-        result.append( *(resultingData + i) );
-    }
-    qDebug() << Q_FUNC_INFO << result.count();
-
-    int zeroOccurs = 0;
-    for( qint16 value : result )
-    {
-        if( !value)
-        {
-            zeroOccurs++;
-//            printf("HEY ");
-        }
-        else
-        {
-            if(zeroOccurs)
-            {
-//                if( zeroOccurs > 10 )
-//                    printf("%d ", zeroOccurs);
-                zeroOccurs = 0;
-            }
-        }
-        //printf("%d ", value);
-    }
+    m_thread.start();
 
     initGui();
 }
 
 Widget::~Widget()
 {
-
+    m_thread.quit();
+    m_thread.wait();
 }
 
 void Widget::initGui()
@@ -97,22 +63,69 @@ void Widget::initGui()
     destLayout->addWidget(pBDest);
 
 
+    QGroupBox* gBAlgParamas = new QGroupBox(tr("Parametres of algorytm"));
+    QFormLayout* formLayout = new QFormLayout;
+    gBAlgParamas->setLayout(formLayout);
+
+    QSpinBox *sbThrshold = new QSpinBox;
+    sbThrshold->setRange( -1000, 1000);
+    sbThrshold->setButtonSymbols(QAbstractSpinBox::NoButtons);
+
+    m_isAlgorytmContinued->setAlignment(Qt::AlignCenter);
+
+    formLayout->addRow(tr("Threshold level (silence), dB"), sbThrshold);
+    formLayout->addRow( m_pBStart );
+    formLayout->addRow( m_isAlgorytmContinued );
+
+
     mainLayout->addWidget(gbSrc);
     mainLayout->addWidget(gbDest);
-
-
-
-    QDir dir("./DATA/input");
-    if( !dir.exists())
-        qDebug() << Q_FUNC_INFO << dir.mkpath(".");
-
-    m_lEsource->setText(dir.absolutePath());
-    m_sourcePath = m_lEsource->text();
+    mainLayout->addWidget(gBAlgParamas);
 
 
     connect(pBSource, &QPushButton::clicked, this, &Widget::onChangeSourcePath);
     connect(pBDest, &QPushButton::clicked, this, &Widget::onChangeDestPath);
+    connect(m_pBStart, &QPushButton::clicked, this, &Widget::onAlgorytmStarted);
+    connect(this, &Widget::runAlgorytm
+            , m_silenceAlgorytm, &SilenceAlgorytm::onRunAlgorytm);
+    connect(this, &Widget::setSrcPath
+            , m_silenceAlgorytm, &SilenceAlgorytm::onSetSrcPath);
+    connect(this, &Widget::setDestPath
+            , m_silenceAlgorytm, &SilenceAlgorytm::onSetDestPath);
+    connect( m_silenceAlgorytm, &SilenceAlgorytm::algorytmFinished
+             , this, &Widget::onAlgorytmFinished);
 
+    connect(sbThrshold, SIGNAL(valueChanged(int))
+            , m_silenceAlgorytm, SLOT(onSetThreshold(int)));
+
+
+    QDir dirSrc("./DATA/input");
+    if( !dirSrc.exists())
+        qDebug() << Q_FUNC_INFO << dirSrc.mkpath(".");
+
+    m_lEsource->setText(dirSrc.absolutePath());
+    emit setSrcPath(m_lEsource->text());
+
+    QDir dirDest("./DATA/output");
+    if( !dirDest.exists())
+        qDebug() << Q_FUNC_INFO << dirDest.mkpath(".");
+
+    m_lEDest->setText(dirDest.absolutePath());
+    emit setDestPath(m_lEDest->text());
+
+}
+
+void Widget::onAlgorytmStarted()
+{
+    m_isAlgorytmContinued->setText(tr("Algorytm is started"));
+    m_pBStart->setEnabled(false);
+    emit runAlgorytm();
+}
+
+void Widget::onAlgorytmFinished()
+{
+    m_pBStart->setEnabled(true);
+    m_isAlgorytmContinued->setText(QString());
 }
 
 void Widget::onChangeSourcePath()
@@ -124,8 +137,8 @@ void Widget::onChangeSourcePath()
     if( sourcePath.isEmpty() )
         return;
 
-    m_sourcePath = sourcePath;
-    m_lEsource->setText(m_sourcePath);
+    emit setSrcPath(sourcePath);
+    m_lEsource->setText(sourcePath);
 }
 
 void Widget::onChangeDestPath()
@@ -137,6 +150,7 @@ void Widget::onChangeDestPath()
     if( destPath.isEmpty() )
         return;
 
-    m_destPath = destPath;
-    m_lEDest->setText(m_destPath);
+    emit setDestPath(destPath);
+    m_lEDest->setText(destPath);
 }
+
