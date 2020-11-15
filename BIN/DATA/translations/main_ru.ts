@@ -30,23 +30,28 @@
         <translation>Старт</translation>
     </message>
     <message>
-        <location filename="../../../DSP_audio/widget.cpp" line="81"/>
+        <location filename="../../../DSP_audio/widget.cpp" line="86"/>
         <source>Threshold level (silence), dB</source>
         <translation>Пороговый уровень тишины, дБ</translation>
     </message>
     <message>
-        <location filename="../../../DSP_audio/widget.cpp" line="82"/>
+        <location filename="../../../DSP_audio/widget.cpp" line="87"/>
+        <source>Time to check start of silense, ms</source>
+        <translation>Время для проверки начала тишины, мс</translation>
+    </message>
+    <message>
+        <location filename="../../../DSP_audio/widget.cpp" line="88"/>
         <source>Time to check end of silense, ms</source>
         <translation>Время для проверки окончания тишины, мс</translation>
     </message>
     <message>
-        <location filename="../../../DSP_audio/widget.cpp" line="128"/>
+        <location filename="../../../DSP_audio/widget.cpp" line="136"/>
         <source>Algorytm is started</source>
         <translation>Алгоритм запущен</translation>
     </message>
     <message>
-        <location filename="../../../DSP_audio/widget.cpp" line="142"/>
-        <location filename="../../../DSP_audio/widget.cpp" line="155"/>
+        <location filename="../../../DSP_audio/widget.cpp" line="150"/>
+        <location filename="../../../DSP_audio/widget.cpp" line="163"/>
         <source>Choose directory</source>
         <translation>Выберите каталог</translation>
     </message>

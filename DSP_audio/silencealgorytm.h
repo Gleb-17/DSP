@@ -22,6 +22,8 @@ public slots:
 
     void onSetThreshold( int value );
 
+    void onSetPreSilenceSamples(int time );
+
     void onSetPostSilenceSamples(int time );
 
     void onRunAlgorytm();
@@ -54,6 +56,8 @@ private:
     uint m_sampleSize;
     uint m_sampleType;
 
+    uint m_preSilenceSamples;
+
     //! Количество сэмплов за время в течении которого уровень ниже порога
     uint m_postSilenceSamples;
 
@@ -61,6 +65,12 @@ private:
 
     //! Даные для записи в файл-результат
     QMap<uint, uint> m_results;
+
+    bool isSilenceFound;
+
+    bool isCheckStartSilencePosition;
+
+    bool isCheckStopSilencePosition;
 };
 
 #endif // SILENCEALGORYTM_H

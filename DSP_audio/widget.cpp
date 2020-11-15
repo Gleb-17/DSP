@@ -71,15 +71,21 @@ void Widget::initGui()
     sbThrshold->setRange( -1000, 1000);
     sbThrshold->setButtonSymbols(QAbstractSpinBox::NoButtons);
 
-    QSpinBox *timeThrshold = new QSpinBox;
-    timeThrshold->setRange( 0, 100000);
-    timeThrshold->setValue( 100 );
-    timeThrshold->setButtonSymbols(QAbstractSpinBox::NoButtons);
+    QSpinBox *timeStartSilence = new QSpinBox;
+    timeStartSilence->setRange( 0, 100000);
+    timeStartSilence->setValue( 20 );
+    timeStartSilence->setButtonSymbols(QAbstractSpinBox::NoButtons);
+
+    QSpinBox *timeEnsSilence = new QSpinBox;
+    timeEnsSilence->setRange( 0, 100000);
+    timeEnsSilence->setValue( 100 );
+    timeEnsSilence->setButtonSymbols(QAbstractSpinBox::NoButtons);
 
     m_isAlgorytmContinued->setAlignment(Qt::AlignCenter);
 
     formLayout->addRow(tr("Threshold level (silence), dB"), sbThrshold);
-    formLayout->addRow(tr("Time to check end of silense, ms"), timeThrshold);
+    formLayout->addRow(tr("Time to check start of silense, ms"), timeStartSilence);
+    formLayout->addRow(tr("Time to check end of silense, ms"), timeEnsSilence);
     formLayout->addRow( m_pBStart );
     formLayout->addRow( m_isAlgorytmContinued );
 
@@ -103,8 +109,10 @@ void Widget::initGui()
 
     connect(sbThrshold, SIGNAL(valueChanged(int))
             , m_silenceAlgorytm, SLOT(onSetThreshold(int)));
-    connect(timeThrshold, SIGNAL(valueChanged(int))
-            , m_silenceAlgorytm, SLOT(onSetSamplesBelowThreshold(int)));
+    connect(timeStartSilence, SIGNAL(valueChanged(int))
+            , m_silenceAlgorytm, SLOT(onSetPreSilenceSamples(int)));
+    connect(timeEnsSilence, SIGNAL(valueChanged(int))
+            , m_silenceAlgorytm, SLOT(onSetPostSilenceSamples(int)));
 
 
     QDir dirSrc("./DATA/input");

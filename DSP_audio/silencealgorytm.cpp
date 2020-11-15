@@ -14,8 +14,12 @@ SilenceAlgorytm::SilenceAlgorytm()
     , m_sampleRate( 44100 )
     , m_sampleSize( 16 )
     , m_sampleType(SIGNED)
+    , m_preSilenceSamples( m_sampleRate * 20 / 1000 )
     , m_postSilenceSamples( m_sampleRate * 100 / 1000 )
     , m_thresholdValue( 0 )
+    , isSilenceFound( false )
+    , isCheckStartSilencePosition( false )
+    , isCheckStopSilencePosition( false )
 {
 
 }
@@ -33,6 +37,11 @@ void SilenceAlgorytm::onSetDestPath(const QString &path)
 void SilenceAlgorytm::onSetThreshold(int value)
 {
     m_thresholdValue = value;
+}
+
+void SilenceAlgorytm::onSetPreSilenceSamples(int time)
+{
+    m_preSilenceSamples = m_sampleRate * time / 1000;
 }
 
 void SilenceAlgorytm::onSetPostSilenceSamples(int time)
@@ -67,44 +76,83 @@ bool SilenceAlgorytm::startAlgorytm(const QString& filename)
     //qDebug() << Q_FUNC_INFO << result.count();
 
     uint startSilencePos = 0;
-    uint counter = 0;
     m_results.clear();
+    uint preSilenceSamples = 0;
     uint postSilenceSamples = 0;
 
     for( int i = 0; i < m_dataResult.count(); ++i )
     {
         if( isSilence(m_dataResult.at(i)) )
         {
-            if( !counter)
+            if( !isCheckStartSilencePosition && !isSilenceFound )
             {
-                //задаём новое начало участка только если счётчик поствремени обнулён
-                if( !postSilenceSamples )
-                    startSilencePos = i;
-                //обновляем счётчик в любом случае
-                postSilenceSamples = m_postSilenceSamples;
+                isCheckStartSilencePosition = true;
+                preSilenceSamples = m_preSilenceSamples;
             }
-            counter++;
+            else if( isCheckStartSilencePosition )
+            {
+                if( preSilenceSamples )
+                    --preSilenceSamples;
+
+                if( !preSilenceSamples )
+                {
+                    isSilenceFound = true;
+                    isCheckStartSilencePosition = false;
+                    startSilencePos = i;
+
+                    preSilenceSamples = 0;
+                }
+            }
+            else if( isCheckStopSilencePosition )
+            {
+                isCheckStopSilencePosition = false;
+                postSilenceSamples = 0;
+            }
         }
         else
         {
-            if( counter )
+            if( isSilenceFound )
             {
-                counter = 0;
-                --postSilenceSamples;
-            }
-            else if( postSilenceSamples )
-            {
-                --postSilenceSamples;
-                if( !postSilenceSamples )
+                if( !isCheckStopSilencePosition )
                 {
-                    uint silenceStart = ((double)startSilencePos / m_sampleRate) * 1000;
-                    uint silenceDuration =
-                            ((double)(i - startSilencePos) / m_sampleRate) * 1000;
+                    isCheckStopSilencePosition = true;
+                    postSilenceSamples = m_postSilenceSamples;
+                }
+                else
+                {
+                    if( postSilenceSamples )
+                        --postSilenceSamples;
 
-                    m_results.insert(silenceStart, silenceDuration);
+                    if( !postSilenceSamples )
+                    {
+                        uint silenceStart = ((double)startSilencePos / m_sampleRate) * 1000;
+                        uint silenceDuration =
+                                ((double)(i - startSilencePos) / m_sampleRate) * 1000;
+
+                        m_results.insert(silenceStart, silenceDuration);
+
+                        isSilenceFound = false;
+                        isCheckStopSilencePosition = false;
+                        postSilenceSamples = 0;
+                    }
                 }
             }
+            else if( isCheckStartSilencePosition )
+            {
+                isCheckStartSilencePosition = false;
+                preSilenceSamples = 0;
+            }
         }
+    }
+
+    //last silence element check
+    if( isSilenceFound )
+    {
+        uint silenceStart = ((double)startSilencePos / m_sampleRate) * 1000;
+        uint silenceDuration =
+                ((double)(m_dataResult.count() - 1 - startSilencePos) / m_sampleRate) * 1000;
+
+        m_results.insert(silenceStart, silenceDuration);
     }
 
     bool result = writeToFile(filename);
