@@ -14,7 +14,7 @@ SilenceAlgorytm::SilenceAlgorytm()
     , m_sampleRate( 44100 )
     , m_sampleSize( 16 )
     , m_sampleType(SIGNED)
-    , m_samplesBelowThreshold( m_sampleRate * 100 / 1000 )
+    , m_postSilenceSamples( m_sampleRate * 100 / 1000 )
     , m_thresholdValue( 0 )
 {
 
@@ -35,9 +35,9 @@ void SilenceAlgorytm::onSetThreshold(int value)
     m_thresholdValue = value;
 }
 
-void SilenceAlgorytm::onSetSamplesBelowThreshold(int time)
+void SilenceAlgorytm::onSetPostSilenceSamples(int time)
 {
-    m_samplesBelowThreshold = m_sampleRate * time / 1000;
+    m_postSilenceSamples = m_sampleRate * time / 1000;
 }
 
 void SilenceAlgorytm::onRunAlgorytm()
@@ -69,7 +69,7 @@ bool SilenceAlgorytm::startAlgorytm(const QString& filename)
     uint startSilencePos = 0;
     uint counter = 0;
     m_results.clear();
-    uint sampleCountsBelowThreshold = 0;
+    uint postSilenceSamples = 0;
 
     for( int i = 0; i < m_dataResult.count(); ++i )
     {
@@ -78,10 +78,10 @@ bool SilenceAlgorytm::startAlgorytm(const QString& filename)
             if( !counter)
             {
                 //задаём новое начало участка только если счётчик поствремени обнулён
-                if( !sampleCountsBelowThreshold )
+                if( !postSilenceSamples )
                     startSilencePos = i;
                 //обновляем счётчик в любом случае
-                sampleCountsBelowThreshold = m_samplesBelowThreshold;
+                postSilenceSamples = m_postSilenceSamples;
             }
             counter++;
         }
@@ -90,12 +90,12 @@ bool SilenceAlgorytm::startAlgorytm(const QString& filename)
             if( counter )
             {
                 counter = 0;
-                --sampleCountsBelowThreshold;
+                --postSilenceSamples;
             }
-            else if( sampleCountsBelowThreshold )
+            else if( postSilenceSamples )
             {
-                --sampleCountsBelowThreshold;
-                if( !sampleCountsBelowThreshold )
+                --postSilenceSamples;
+                if( !postSilenceSamples )
                 {
                     uint silenceStart = ((double)startSilencePos / m_sampleRate) * 1000;
                     uint silenceDuration =

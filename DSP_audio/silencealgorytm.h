@@ -22,7 +22,7 @@ public slots:
 
     void onSetThreshold( int value );
 
-    void onSetSamplesBelowThreshold(int time );
+    void onSetPostSilenceSamples(int time );
 
     void onRunAlgorytm();
 
@@ -55,7 +55,7 @@ private:
     uint m_sampleType;
 
     //! Количество сэмплов за время в течении которого уровень ниже порога
-    uint m_samplesBelowThreshold;
+    uint m_postSilenceSamples;
 
     int m_thresholdValue;
 
