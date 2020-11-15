@@ -14,7 +14,7 @@ SilenceAlgorytm::SilenceAlgorytm()
     , m_sampleRate( 44100 )
     , m_sampleSize( 16 )
     , m_sampleType(SIGNED)
-    , m_startSilencePos( 0 )
+    , m_samplesBelowThreshold( m_sampleRate * 100 / 1000 )
     , m_thresholdValue( 0 )
 {
 
@@ -32,7 +32,12 @@ void SilenceAlgorytm::onSetDestPath(const QString &path)
 
 void SilenceAlgorytm::onSetThreshold(int value)
 {
-   m_thresholdValue = value;
+    m_thresholdValue = value;
+}
+
+void SilenceAlgorytm::onSetSamplesBelowThreshold(int time)
+{
+    m_samplesBelowThreshold = m_sampleRate * time / 1000;
 }
 
 void SilenceAlgorytm::onRunAlgorytm()
@@ -54,53 +59,50 @@ void SilenceAlgorytm::onRunAlgorytm()
 
 bool SilenceAlgorytm::startAlgorytm(const QString& filename)
 {
-    QFile file(m_sourcePath + "/" + filename);
+    QMutexLocker mL( &m_mutex );
 
-    if (!file.open(QIODevice::ReadOnly) )
+    if( !readFile(filename) )
         return false;
 
-    qint64 filesize = file.size();
-
-    QByteArray buffer;
-    buffer.resize(static_cast<int>(filesize));
-    QDataStream stream(&file);
-
-
-    stream.readRawData( buffer.data(), static_cast<int>(filesize));
-    qDebug() << Q_FUNC_INFO << buffer.count();
-
-    //Assign sound samples to short array
-    qint16* resultingData = reinterpret_cast<qint16*>(buffer.data());
-
-    QList<qint16> dataResult;
-    for ( int i=0; i < buffer.count() / 2; i++ )
-    {
-        dataResult.append( *(resultingData + i) );
-        //printf("%d ", *(resultingData + i));
-    }
     //qDebug() << Q_FUNC_INFO << result.count();
 
-    int counter = 0;
+    uint startSilencePos = 0;
+    uint counter = 0;
     m_results.clear();
+    uint sampleCountsBelowThreshold = 0;
 
-    for( int i = 0; i < dataResult.count(); ++i )
+    for( int i = 0; i < m_dataResult.count(); ++i )
     {
-        if( isSilence(dataResult.at(i)) )
+        if( isSilence(m_dataResult.at(i)) )
         {
             if( !counter)
-                m_startSilencePos = i;
+            {
+                //задаём новое начало участка только если счётчик поствремени обнулён
+                if( !sampleCountsBelowThreshold )
+                    startSilencePos = i;
+                //обновляем счётчик в любом случае
+                sampleCountsBelowThreshold = m_samplesBelowThreshold;
+            }
             counter++;
         }
         else
         {
             if( counter )
             {
-                uint silenceStart = ((double)m_startSilencePos / m_sampleRate) * 1000;
-                uint silenceDuration = ((double)counter / m_sampleRate) * 1000;
-
                 counter = 0;
+                --sampleCountsBelowThreshold;
+            }
+            else if( sampleCountsBelowThreshold )
+            {
+                --sampleCountsBelowThreshold;
+                if( !sampleCountsBelowThreshold )
+                {
+                    uint silenceStart = ((double)startSilencePos / m_sampleRate) * 1000;
+                    uint silenceDuration =
+                            ((double)(i - startSilencePos) / m_sampleRate) * 1000;
 
-                m_results.insert(silenceStart, silenceDuration);
+                    m_results.insert(silenceStart, silenceDuration);
+                }
             }
         }
     }
@@ -115,6 +117,35 @@ bool SilenceAlgorytm::isSilence(qint16 amplitude)
     double db = 20 * log10(abs(amplitude));
     //printf("%f ", db);
     return db < m_thresholdValue;
+}
+
+bool SilenceAlgorytm::readFile(const QString &filename)
+{
+    QFile file(m_sourcePath + "/" + filename);
+
+    if (!file.open(QIODevice::ReadOnly) )
+        return false;
+
+    qint64 filesize = file.size();
+
+    QByteArray buffer;
+    buffer.resize(static_cast<int>(filesize));
+    QDataStream stream(&file);
+
+
+    stream.readRawData( buffer.data(), static_cast<int>(filesize));
+    //qDebug() << Q_FUNC_INFO << buffer.count();
+
+    //Assign sound samples to short array
+    qint16* resultingData = reinterpret_cast<qint16*>(buffer.data());
+
+    m_dataResult.clear();
+    for ( int i=0; i < buffer.count() / 2; i++ )
+    {
+        m_dataResult.append( *(resultingData + i) );
+        //printf("%d ", *(resultingData + i));
+    }
+    return true;
 }
 
 bool SilenceAlgorytm::writeToFile( const QString &filename )
@@ -134,10 +165,12 @@ bool SilenceAlgorytm::writeToFile( const QString &filename )
 #endif
 
     QTextStream stream(&file);
-    stream << "start (ms)" << " " << "end (ms)" << endOfLine;
+    stream << "start (ms)" << " " << "duration (ms)" << endOfLine;
     for( QMap<uint, uint>::iterator it = m_results.begin(); it != m_results.end(); ++it )
     {
         stream << it.key() << " " << it.value() << endOfLine;
     }
     file.close();
+
+    return true;
 }

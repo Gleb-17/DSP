@@ -4,6 +4,7 @@
 #include <QObject>
 
 #include <QMap>
+#include <QMutex>
 #include <QString>
 
 
@@ -21,6 +22,8 @@ public slots:
 
     void onSetThreshold( int value );
 
+    void onSetSamplesBelowThreshold(int time );
+
     void onRunAlgorytm();
 
 signals:
@@ -31,10 +34,17 @@ private:
 
     bool isSilence(qint16 amplitude);
 
+    bool readFile( const QString &filename );
+
     bool writeToFile( const QString &filename );
 
 private:
     enum {SIGNED, UNSIGNED};
+
+    //! Данные из файла
+    QList<qint16> m_dataResult;
+
+    QMutex m_mutex;
 
     QString m_destPath;
     QString m_sourcePath;
@@ -44,10 +54,12 @@ private:
     uint m_sampleSize;
     uint m_sampleType;
 
-    uint m_startSilencePos;
+    //! Количество сэмплов за время в течении которого уровень ниже порога
+    uint m_samplesBelowThreshold;
 
     int m_thresholdValue;
 
+    //! Даные для записи в файл-результат
     QMap<uint, uint> m_results;
 };
 
